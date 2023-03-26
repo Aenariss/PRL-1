@@ -21,7 +21,7 @@ dd if=/dev/random bs=1 count=$numbers of=numbers
 
 #spusteni
 
-mpirun --prefix /usr/local/share/OpenMPI -np $numbers parsplit
+mpirun --prefix /usr/local/share/OpenMPI -oversubscribe -np $numbers parsplit
 
 #uklid
 
