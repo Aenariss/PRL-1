@@ -16,7 +16,7 @@ using namespace std;
 vector<uint8_t> readNumbers() {
     ifstream num_file ("numbers", ios::binary);
     vector<uint8_t> nums;
-    if (!num_file) exit (1); // error opening file
+    if (!num_file) exit(1); // error opening file
 
     uint8_t i;
     while (num_file.read((char*)&i, sizeof(uint8_t)))
@@ -40,12 +40,7 @@ int getMed(vector<uint8_t> numbers) {
     return median;
 }
 
-void printVec(vector<uint8_t> vec, int rank) {
-    for (auto x : vec) {
-        cout << "cpu: " << rank << " number: " << static_cast<int>(x) << endl;
-    }
-}
-
+/* Function to print a vector in a certain way, very pretty */
 void printVecNoBreak(vector<uint8_t> vec) {
     auto size = vec.size();
     // if the vector is empty, dont print anything
@@ -59,6 +54,7 @@ void printVecNoBreak(vector<uint8_t> vec) {
     }
 }
 
+/* Function to print 3 vectors, intended for L, E and G vectors */
 void print3Vecs(vector<uint8_t> L, vector<uint8_t> E, vector<uint8_t> G) {
     cout << "L: [";
     printVecNoBreak(L);
@@ -73,6 +69,7 @@ void print3Vecs(vector<uint8_t> L, vector<uint8_t> E, vector<uint8_t> G) {
     cout << "]\n";
 }
 
+/* Function to calculate the sum of a vector */
 int vectorSum(vector<int> vec) {
     int sum = 0;
     for (auto x : vec) {
@@ -81,62 +78,29 @@ int vectorSum(vector<int> vec) {
     return sum;
 }
 
-// function to gather the total size of L, E and G vectors
-vector<int> gatherTotalVectorSize(vector<uint8_t> L, vector<uint8_t> E, vector<uint8_t> G, int rank, int size) {
-
-    // gather all sizes pf each vector from the processes
-    vector<int> sizes_L, sizes_E, sizes_G;
-    // get the actual sizes for gather
-    int sizeL = L.size();
-    int sizeE = E.size();
-    int sizeG = G.size();
-    if (rank == 0) {
-        sizes_L.resize(size); // vector of results has size of number of processors that parsed the info
-        sizes_E.resize(size); 
-        sizes_G.resize(size);
-    }
-    // gather SIZES
-    MPI_Gather(&sizeL, 1, MPI_INT, sizes_L.data(), 1, MPI_INT, 0, MPI_COMM_WORLD); // root receives only 1 nubmer - the size
-    MPI_Gather(&sizeE, 1, MPI_INT, sizes_E.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Gather(&sizeG, 1, MPI_INT, sizes_G.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    int total_size_L = 0;
-    int total_size_E = 0;
-    int total_size_G = 0;
-
-    if (rank == 0) {
-        total_size_L = vectorSum(sizes_L);
-        total_size_E = vectorSum(sizes_E);
-        total_size_G = vectorSum(sizes_G);
-
-        vector<int> returnSizes = {total_size_L, total_size_E, total_size_G};
-        return returnSizes;
-    }
-    vector<int> returnSizes;
-    return returnSizes;
-}
-
 int main(int argc, char *argv[]) {
 
-    // Initialize the MPI environment
     MPI_Init(&argc, &argv);
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+
     int median_val;
     int each_cpu_numbers;
     vector<uint8_t> numbers;
     /* root process loads the numbers and chooses the median (the middle) and broadcast it */
-    /* if the number of numbers is even, choose the one closer to the beginning */
     if (rank == 0) {
         numbers = readNumbers();
+
+        if (numbers.size() == 0) MPI_Abort(MPI_COMM_WORLD, 1); // error, invalid number of numbers
+        if (numbers.size() % size != 0) MPI_Abort(MPI_COMM_WORLD, 1); // number of nubmers cant be evenl;y divided by number of processes
 
         auto median_index = getMed(numbers);
         median_val = numbers[median_index];
 
-        each_cpu_numbers = numbers.size() / size;
+        each_cpu_numbers = numbers.size() / size; // divide the number of numbers that will be assigned to each process
     }
 
     MPI_Bcast(&median_val, 1, MPI_INT, 0, MPI_COMM_WORLD); // broadcast the mean from the root to others
@@ -229,7 +193,6 @@ int main(int argc, char *argv[]) {
         free(displsE);
         free(displsG);
     }
-
-    // Finalize the MPI environment.
+    
     MPI_Finalize();
 }
